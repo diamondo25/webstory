@@ -1,0 +1,11 @@
+@CHARSET "ISO-8859-1";
+
+#logwindow {
+	position: fixed;
+	right: 0;
+	top: 0;
+	width: 400px;
+	height: 600px;
+	overflow-y: scroll;
+	outline: 1px solid gray;
+}
