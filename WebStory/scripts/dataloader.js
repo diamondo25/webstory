@@ -1,17 +1,36 @@
 (function(context) {
   var objectStorage = {};
 
-  function Node(name, parent) {
+  var Node = context.Node = function Node(name, parent) {
     this['name'] = name;
     this['..'] = parent;
     this['_keys'] = [];
   }
+  
+  Node.prototype.forEach = function (callback) {
+    for (var i = 0; i < this._keys.length; i++) {
+      var key = this._keys[i];
+      callback(this[key], key, i);
+    }
+  };
+
 
   context.UOL = function UOL(name, parent, path) {
     this['name'] = name;
     this['..'] = parent;
     this['path'] = path;
   }
+  
+  context.UOL.prototype.getPath = Node.prototype.getPath = function () {
+    var cur = this;
+    var path = '';
+    do {
+      path = cur.name + '/' + path;
+      cur = cur['..'];
+    } while (cur !== null)
+    
+    return path;
+  };
 
   context.isReservedDataObject = function(name) {
     return [ 'name', 'ITEMID', '..', '_image', 'path', '_keys' ].indexOf(name) != -1;
@@ -85,7 +104,6 @@
     var node = null;
     if (path !== "null") {
       var nodes = path.split('/');
-      console.log('Path im searching for: ' + nodes.join(' > '))
 
       var innerDepth = 0;
       function findRecursiveNode(curnode, nextnodes) {
@@ -94,7 +112,6 @@
         }
         for (var i = 0; i < curnode.children.length; i++) {
           var node = curnode.children[i];
-          console.log('> ' + innerDepth + ': ' + node.getAttribute('name'));
           if (node.getAttribute('name') === nextnodes[0]) {
             innerDepth++;
             return findRecursiveNode(node, nextnodes.splice(1));
@@ -110,7 +127,7 @@
     }
 
     if (node !== null) {
-      var parsed = parseNodeType(node, null);
+      var parsed = parseNodeType(node, null, xml.documentElement.getAttribute('name'));
       
       xml.parsed_data[path] = parsed;
       return parsed;

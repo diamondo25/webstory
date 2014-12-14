@@ -1,79 +1,104 @@
 (function(context) {
 
+  var itemdata = context.itemdata = {};
+  var playerCounter = 0;
+
   var Player = function Player(mainPlayer) {
+    playerCounter++;
     var player = this;
     this.name = 'MapleDummy';
-    this.face = 'default';
-    this.stance = 'alert';
+    this.emotion = 'default';
+    this.emotion_frame = 0;
+    this.stance = 'walk';
     this.stance_frame = 0;
-    this.stance_type = 1;
+    this.stance_max_frames = 0;
+    this.stance_walk_type = 1;
+    this.stance_stand_type = 1;
     this.elven_ears = false;
     this.weapongroup = -1;
 
+
     var itemset = this.itemset = [];
     itemset.push(1002357);
-    itemset.push(1042003);
-    // itemset.push(1062007);
-    itemset.push(1322013);
-    itemset.push(1432038);
-    // itemset.push(1462027);
+    itemset.push(1102169);
+    itemset.push(1032019);
+    itemset.push(1070003);
+    
 
     this.x = 0;
     this.y = 0;
-    
-    
+
     this.skin = 0;
     this.hair = 0;
     this.face = 0;
     this.data_buffer = {};
-    this.data_buffer.zlayers = {};
 
-    this.setStance(this.stance, this.stance_type);
+    this.setStance(this.stance);
     this.reassignItems();
+
+    var drawGroup = this.drawGroup = context.frame.game.add.group();
+    drawGroup.pivot.x = 0;
+    drawGroup.pivot.y = 0;
+    drawGroup.enableBody = true;
+    
+    this.loadData();
+    this.addWeapon(1332076);
     this.repositionYourself();
-    
-    var cntr = 0, back = false;
-    
-    context.frame.registerDrawCallback(100 + (mainPlayer ? 20 : 0), function() {
+
+    var back = false;
+
+    var cntr = 0;
+    var stanceCounter = 0;//playerCounter;
+    var keys = ["walk1", "walk2", "stand1", "stand2", "alert", "swingO1", "swingO2", "swingO3", "swingOF", "swingT1", "swingT2", "swingT3", "swingTF", "swingP1", "swingP2", "swingPF", "stabO1", "stabO2", "stabOF", "stabT1", "stabT2", "stabTF", "shoot1", "shoot2", "shootF", "proneStab", "prone", "heal", "fly", "jump", "sit", "ladder", "rope", "dead", "ghostwalk", "ghoststand", "ghostjump", "ghostproneStab", "ghostladder", "ghostrope", "ghostfly", "ghostsit"];
+    context.frame.registerUpdateCallback(function(timer) {
       cntr++;
       if ((cntr % 10) == 0) {
-        player.data_buffer.zlayers = {};
+        stanceCounter++;
+        stanceCounter %= keys.length;
+        player.setStance(keys[stanceCounter]);
+        
+        
+        /*
+        
         if (back && player.stance_frame == 0) {
           back = false;
-        } else if (!back && player.stance_frame == 2) {
+        } else if (!back && player.stance_frame == player.stance_max_frames) {
           back = true;
         }
         player.stance_frame += back ? -1 : 1;
+        */
+
         player.repositionYourself();
       }
-      
-      
-      for ( var layer in player.data_buffer.zlayers) {
-        var drawables = player.data_buffer.zlayers[layer];
-        for (var i = 0; i < drawables.length; i++) {
-          var drawable = drawables[i];
-          
-          if (drawable.category === 'hairOverHead' && player.data_buffer.hasHidingCap) {
-            continue;
-          }
-          
-          drawable.image.drawAt(drawable.x + player.x, drawable.y + player.y);
-        }
-      }
+
+      player.drawGroup.x = player.x;
+      player.drawGroup.y = player.y;
     });
   };
 
-  Player.prototype.setStance = function(stance, stance_type) {
+  Player.prototype.addWeapon = function(itemid) {
+    parseItem(this, itemid);
+    if (this.itemset.indexOf(itemid) === -1) {
+      this.itemset.push(itemid);
+    }
+    this.stance_walk_type = itemdata[itemid].info.walk || 1;
+    this.stance_stand_type = itemdata[itemid].info.stand || 1;
+
+  };
+
+  Player.prototype.setStance = function(stance) {
     this.stance_frame = 0;
-    this.stance = stance;
-    this.stance_type = stance_type;
-    if (this.stance == 'stand' || this.stance == 'walk') {
-      this.stance += this.stance_type;
+    this.stance = this.stance_name = stance;
+
+    if (stance == 'stand') {
+      this.stance = this.stance_name + this.stance_stand_type;
+    } else if (stance == 'walk') {
+      this.stance = this.stance_name + this.stance_walk_type;
     }
   };
 
   Player.prototype.reassignItems = function() {
-    var plyr = this;
+    var player = this;
 
     var copiedItems = this.itemset.slice(0);
     var cntr = 0;
@@ -103,7 +128,7 @@
         context.getItemDataNode(itemid, null, function(obj) {
           if (obj === null) {
             console.log('Couldnt find ' + itemid);
-            // delete plyr.itemset[cntr--];
+            // delete player.itemset[cntr--];
           }
         }, true);
       }
@@ -114,10 +139,11 @@
     this.skin = 2000 + (this.skin % 1000);
   };
 
-  Player.prototype.repositionYourself = function() {
-    var plyr = this;
+  Player.prototype.loadData = function() {
+    var player = this;
 
     this.data_buffer.body_map = {};
+    this.data_buffer.body_map.navel = [];
     this.data_buffer.hasHidingCap = false;
 
     context.getItemDataNode(this.skin, this.stance, function(navelobj) {
@@ -125,12 +151,17 @@
         throw new 'Navel not found xd?';
       }
 
-      var bodymap = navelobj[plyr.stance_frame]['body']['map'];
+      for (var i = 0;; i++) {
+        if (!navelobj[i])
+          break;
+        player.stance_max_frames = i;
+        var bodymap = navelobj[i]['body']['map'];
 
-      plyr.data_buffer.body_map.navel = {
-        0 : bodymap['navel']['X'],
-        1 : bodymap['navel']['Y']
-      };
+        player.data_buffer.body_map.navel[i] = {
+          0 : bodymap['navel']['X'],
+          1 : bodymap['navel']['Y']
+        };
+      }
     }, true);
 
     parseItem(this, this.skin);
@@ -140,120 +171,215 @@
 
     for (var i = 0; i < this.itemset.length; i++)
       parseItem(this, this.itemset[i]);
-
-    // console.warn(this.data_buffer.zlayers);
   };
 
-  function parseItem(player, id) {
+  Player.prototype.repositionYourself = function() {
+    var player = this;
+
+    this.drawGroup.removeAll();
+
+    function drawItem(itemid) {
+      var frame = itemdata[itemid][player.stance];
+      if (!frame) {
+        // console.error('Anim ' + player.stance + ' not found in itemid: ' +
+        // itemid);
+        return;
+      }
+      if ('' in frame) {
+        frame = frame[''];
+      } else {
+        frame = frame[player.stance_frame];
+      }
+
+      if (!frame) {
+        // console.error('Frame ' + player.stance_frame + ' not found in itemid:
+        // ' + itemid);
+        return;
+      }
+
+      for ( var drawableCategory in frame) {
+        var drawable = frame[drawableCategory];
+
+        var bodyObject = player.drawGroup.create(drawable.x - drawable.image.originX, drawable.y
+            - drawable.image.originY, drawable.image.cacheKey);
+        bodyObject.z = drawable.z
+      }
+    }
+
+    function drawFace(faceid) {
+      var frame = itemdata[faceid][player.emotion];
+      if (!frame) {
+        // console.error('Anim ' + player.stance + ' not found in faceid: ' +
+        // itemid);
+        return;
+      }
+      if ('' in frame) {
+        frame = frame[''];
+      } else {
+        frame = frame[player.emotion_frame];
+      }
+
+      if (!frame) {
+        // console.error('Frame ' + player.stance_frame + ' not found in faceid:
+        // ' + itemid);
+        return;
+      }
+
+      for ( var drawableCategory in frame) {
+        var drawable = frame[drawableCategory];
+
+        var mapping = drawable['info']['map'];
+        var xy = calculateXYFromMapping(player, mapping, player.stance, player.stance_frame);
+
+        var bodyObject = player.drawGroup.create(xy[0] - drawable.image.originX, xy[1] - drawable.image.originY,
+            drawable.image.cacheKey);
+        bodyObject.z = drawable.z
+      }
+    }
+
+    drawItem(this.skin);
+    drawItem(10000 + this.skin);
+    drawItem(30000 + this.hair);
+
+    for (var i = 0; i < this.itemset.length; i++)
+      drawItem(this.itemset[i]);
+
+    drawFace(20000 + this.face);
+    this.drawGroup.sort();
+  };
+
+  function parseItem(player, itemid) {
+
+    if (itemdata[itemid]) {
+      console.warn('Already loaded ' + itemid);
+      return;
+    }
+
+    itemdata[itemid] = {};
+
     var iteminfo = null;
-    context.getItemDataNode(id, null, function(obj) {
+    context.getItemDataNode(itemid, null, function(obj) {
       iteminfo = obj;
     }, true);
-    
+
+    itemdata[itemid].info = iteminfo['info'];
+
     var o = {
-      iteminfo: iteminfo,
-      itemtype: context.getItemType(id),
-      item_raw_type: Math.floor(id / 1000),
-      foundinfo: false
+      iteminfo : iteminfo,
+      itemtype : context.getItemType(itemid),
+      item_raw_type : Math.floor(itemid / 1000),
+      foundinfo : false
     }
 
     if (o.iteminfo[player.weapongroup]) {
       o.iteminfo = o.iteminfo[player.weapongroup];
-      o.iteminfo['ITEMID'] = id;
+      o.iteminfo['ITEMID'] = itemid;
     }
 
-    o.isface = typeof o.iteminfo[player.face] !== 'undefined';
+    o.isface = o.item_raw_type === 20;
+    console.log(itemid + ' is faic ' + o.isface)
 
-    for (var i = 0; i < o.iteminfo._keys.length; i++) {
-      var stanceName = o.iteminfo._keys[i];
-      
-      var stanceNode = o.iteminfo[stanceName];
-      if (stanceName === 'ITEMID' || stanceName === 'info' || typeof stanceNode !== 'object') {
-        continue;
+    o.iteminfo.forEach(function(stanceNode, stanceName) {
+      if (typeof stanceNode !== 'object') {
+        return;
       }
 
-      var tmp = null;
-      if (o.isface) {
-        if (stanceName === 'default') {
-          tmp = stanceNode;
-        } else {
-          tmp = stanceNode['0'];
-        }
-      } else {
-        tmp = stanceNode[player.stance_frame];
-      }
-      
-      stanceNode = tmp;
+      /*if (stanceName != (o.isface ? player.emotion : player.stance)) {
+        return;
+      }*/
 
       if (typeof stanceNode === 'undefined') {
-        // console.warn('No info found for key ' + stanceName);
-        continue;
+        console.warn('No info found for key ' + stanceName);
+        return;
       }
 
       if (stanceNode instanceof context.UOL) {
-        console.warn('Probably UOL: ' + stanceNode);
+        console.warn('Probably UOL: ' + stanceNode.getPath());
         stanceNode = context.resolveUOL(stanceNode);
       }
 
       if (stanceNode === null) {
         console.warn('(2) No info found for key ' + stanceName);
-        continue;
+        return;
       }
 
-      for (var j = 0; j < stanceNode._keys.length; j++) {
-        var frameName = stanceNode._keys[j];
-        parseItemFrame(player, o, stanceNode[frameName], frameName, stanceNode, stanceName);
+      stanceNode['frames'] = {};
+      if (stanceNode['0']) {
+        stanceNode.forEach(function(frame, frameName) {
+          if (!(frame instanceof context.Node)) {
+            return;
+          }
+
+          stanceNode['frames'][frameName] = {};
+          frame.forEach(function(categoryNode, categoryName) {
+            var obj = parseItemFrame(itemid, player, o, categoryNode, categoryName, stanceNode, stanceName, frameName);
+            if (obj) {
+              stanceNode['frames'][frameName][categoryName] = obj.image;
+            }
+          });
+        });
+
+      } else {
+        stanceNode['frames']['0'] = {};
+        stanceNode.forEach(function(categoryNode, categoryName) {
+          if (!(categoryNode instanceof context.Node)) {
+            return;
+          }
+
+          var obj = parseItemFrame(itemid, player, o, categoryNode, categoryName, stanceNode, stanceName, "");
+          if (obj) {
+            stanceNode['frames']['0'][categoryName] = obj.image;
+          }
+        });
       }
-    }
+    });
   }
-  
-  function parseItemFrame(player, o, block, category, prevNode, stanceName) {
-    if (category === 'delay') {
+
+  function parseItemFrame(itemid, player, o, categoryNode, categoryName, prevNode, stanceName, frameName) {
+    if (typeof categoryNode !== 'object') {
       return;
     }
 
-    if (block instanceof context.UOL) {
-      console.warn('Probably UOL: ' + block);
-      block = context.resolveUOL(block);
-      prevNode[category] = block;
+    if (categoryNode instanceof context.UOL) {
+      console.warn('Probably UOL: ' + categoryNode.getPath());
+      categoryNode = context.resolveUOL(categoryNode);
+      prevNode[categoryName] = categoryNode;
     }
 
-    if (!block['map']) {
-      // console.warn('No mapping info?');
-      // console.warn(block['map']);
-      return;
-    }
-
-    if (o.itemtype == 2 && stanceName != player.face && player.stance != 'rope') {
-      return;
-    }
-    if (o.itemtype == 1 && category == 'ear' && !player.elven_ears) {
-      return;
-    }
-    if (o.itemtype != 2 && stanceName != player.stance && stanceName != player.face) {
+    if (!categoryNode['map']) {
+      console.warn('No mapping info? ' + categoryNode.getPath());
+      // console.warn(categoryNode['map']);
       return;
     }
 
-    if (o.itemtype == 121 && category != 'weapon') {
+    if (o.itemtype == 2 && stanceName != player.emotion && player.stance != 'rope') {
+      return;
+    }
+    if (o.itemtype == 1 && categoryName == 'ear' && !player.elven_ears) {
+      return;
+    }
+
+    if (o.itemtype == 121 && categoryName != 'weapon') {
       return;
     }
     if (o.itemtype == 190) {
       return;
     }
     var zval = 0;
-    if (!block['z'] || !context.zmap[block['z']]) {
+    if (!categoryNode['z'] || !context.zmap[categoryNode['z']]) {
       if (o.item_raw_type == 21) {
         zval = context.zmap['face'];
       } else {
         return;
       }
     } else {
-      zval = context.zmap[block['z']];
+      zval = context.zmap[categoryNode['z']];
     }
 
-    zval = 1000 - zval;
+    if (o.item_raw_type !== 21)
+      zval = 1000 - zval;
 
-    var tmptmp = block;
+    var tmptmp = categoryNode;
     var imgkey = '';
     var blockname = '';
     while (true) {
@@ -267,50 +393,69 @@
     }
 
     var objectdata = {
-      'info' : block,
+      'info' : categoryNode,
       'type' : o.itemtype,
       'itemid' : o.iteminfo['ITEMID'],
+      'frame' : frameName,
       'stance' : blockname,
-      'category' : category,
+      'category' : categoryName,
       'vslot' : !!o.iteminfo['info']['vslot'] ? o.iteminfo['info']['vslot'] : [],
       'islot' : !!o.iteminfo['info']['islot'] ? o.iteminfo['info']['islot'] : 'characterStart'
     };
-    
-    if (objectdata.islot.indexOf('Cp') !== -1 &&objectdata.vslot.indexOf('H1') !== -1) {
+
+    if (objectdata.islot.indexOf('Cp') !== -1 && objectdata.vslot.indexOf('H1') !== -1) {
       player.data_buffer.hasHidingCap = true;
     }
 
-    var mapping = block['map'];
+    var mapping = categoryNode['map'];
 
+    var xy = calculateXYFromMapping(player, mapping, stanceName, frameName);
+
+    objectdata['x'] = xy[0];
+    objectdata['y'] = xy[1];
+    objectdata['z'] = zval;
+
+    objectdata['image'] = context.getOrCreateSprite(categoryNode);
+
+    if (!itemdata[itemid][stanceName]) {
+      itemdata[itemid][stanceName] = {};
+    }
+    if (!itemdata[itemid][stanceName][frameName]) {
+      itemdata[itemid][stanceName][frameName] = {};
+    }
+    if (!itemdata[itemid][stanceName][frameName][categoryName]) {
+      itemdata[itemid][stanceName][frameName][categoryName] = objectdata;
+    }
+
+    return objectdata;
+  }
+
+  function calculateXYFromMapping(player, mapping, stanceName, frameName) {
+    var bodymap = player.data_buffer.body_map;
     var x = 0, y = 0;
-    for ( var mapname in mapping) {
-      if (context.isReservedDataObject(mapname)) {
-        continue;
-      }
 
-      if (!player.data_buffer.body_map[mapname]) {
-        player.data_buffer.body_map[mapname] = {
-          0 : x + mapping[mapname]['X'],
-          1 : y + mapping[mapname]['Y']
-        };
-        // console.warn('adding')
+    mapping.forEach(function(map, mapname) {
+
+      if (!bodymap[mapname] || !bodymap[mapname][frameName]) {
+        // Add bodymap if it is not there
+        if (!bodymap[mapname]) {
+          bodymap[mapname] = {};
+        }
+
+        var positions = bodymap[mapname][frameName];
+        if (!positions) {
+          positions = bodymap[mapname][frameName] = [];
+        }
+
+        positions.push(x + map['X']);
+        positions.push(y + map['Y']);
       } else {
-        x = player.data_buffer.body_map[mapname][0] - mapping[mapname]['X'];
-        y = player.data_buffer.body_map[mapname][1] - mapping[mapname]['Y'];
+        x = bodymap[mapname][frameName][0] - map['X'];
+        y = bodymap[mapname][frameName][1] - map['Y'];
       }
-    }
+    });
 
-    objectdata['x'] = x;
-    objectdata['y'] = y;
-
-    objectdata['image'] = context.getOrCreateSprite(block);
-
-    // console.warn(objectdata);
-
-    if (!player.data_buffer.zlayers[zval]) {
-      player.data_buffer.zlayers[zval] = [];
-    }
-    player.data_buffer.zlayers[zval].push(objectdata);
+    return [ x, y ];
   }
 
   context.Player = Player;

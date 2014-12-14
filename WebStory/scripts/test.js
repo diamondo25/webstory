@@ -1,4 +1,4 @@
-(function (context) {
+window.runOnInitialization(function (context) {
   context.getDataNode("Base.wz/zmap.img/null", function (obj) {
     var i = 0;
     var arr = {};
@@ -25,7 +25,7 @@
     }
   });*/
   
-  var showFPS = true;
+  var showFPS = false;
   if (showFPS) {
     var curtime = new Date();
     var frames = 0, lastFPS = 0;
@@ -45,11 +45,11 @@
     });
   }
   
-  for (var i = 0; i < 20; i++) {
-    for (var j = 0; j < 4; j++) {
+  for (var i = 0; i < 30; i++) {
+    for (var j = 0; j < 30; j++) {
       var player = new context.Player(i == 10);
-      player.y = 120 + (j * 90);
-      player.x = 30 + (i * 90);
+      player.y = 0 + (j * 90);
+      player.x = 0 + (i * 90);
     }
   }
-})(window);
+});

@@ -15,13 +15,15 @@ var server = http.createServer(function(req, res) {
     return;
   }
 
-  if (req.url.indexOf('../') !== -1) {
+  var url = require('url').parse(req.url, true);
+
+  if (url.pathname.indexOf('../') !== -1) {
     res.writeHead(400);
     res.end('Wrong path: ' + req.url);
     return;
   }
 
-  var filePath = path.join(document, req.url);
+  var filePath = path.join(document, url.pathname);
   var stat;
   try {
     stat = fs.statSync(filePath);
@@ -32,6 +34,15 @@ var server = http.createServer(function(req, res) {
   }
 
   if (!stat.isFile()) {
+    if (stat.isDirectory() && url.query['contents']) {
+      var files = fs.readdirSync(filePath);
+      res.writeHead(200, {
+        'Content-Type' : 'application/json'
+      });
+      res.end(JSON.stringify(files));
+      return;
+
+    }
     res.writeHead(404);
     res.end("Not a file");
   } else {

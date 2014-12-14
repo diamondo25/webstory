@@ -15,7 +15,15 @@ module.exports = function(grunt) {
     concat : {
       javascript : {
         src : 'scripts/**/*.js',
-        dest : 'public/webstory.js'
+        dest : 'public/js/webstory.js'
+      },
+      phaser : {
+        src : 'node_modules/phaser/dist/phaser.min.js',
+        dest : 'public/js/phaser.js'
+      },
+      phasermap : {
+        src : 'node_modules/phaser/dist/phaser.map',
+        dest : 'public/js/phaser.map'
       }
     },
     watch : {
