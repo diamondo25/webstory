@@ -4,78 +4,104 @@
   var playerCounter = 0;
 
   var Player = function Player(mainPlayer) {
+    Phaser.Group.call(this, context.frame.game);
+
     playerCounter++;
     var player = this;
     this.name = 'MapleDummy';
-    this.emotion = 'default';
+    this.emotion = 'hot';
     this.emotion_frame = 0;
     this.stance = 'walk';
     this.stance_frame = 0;
-    this.stance_max_frames = 0;
+    this.stance_delay = 0;
+    this.stance_max_frames = 3;
     this.stance_walk_type = 1;
     this.stance_stand_type = 1;
     this.elven_ears = false;
     this.weapongroup = -1;
-
+    this.showface = true;
 
     var itemset = this.itemset = [];
     itemset.push(1002357);
     itemset.push(1102169);
     itemset.push(1032019);
+    itemset.push(1050010);
     itemset.push(1070003);
-    
 
     this.x = 0;
     this.y = 0;
+    this.flip = false;
 
     this.skin = 0;
     this.hair = 0;
     this.face = 0;
     this.data_buffer = {};
 
-    this.setStance(this.stance);
     this.reassignItems();
 
-    var drawGroup = this.drawGroup = context.frame.game.add.group();
+    var drawGroup = this.drawGroup = this;
     drawGroup.pivot.x = 0;
     drawGroup.pivot.y = 0;
-    drawGroup.enableBody = true;
-    
+    // drawGroup.z = mainPlayer ? 100 : 95;
+
     this.loadData();
     this.addWeapon(1332076);
     this.repositionYourself();
 
+    this.setStance(this.stance);
+    
     var back = false;
 
     var cntr = 0;
-    var stanceCounter = 0;//playerCounter;
-    var keys = ["walk1", "walk2", "stand1", "stand2", "alert", "swingO1", "swingO2", "swingO3", "swingOF", "swingT1", "swingT2", "swingT3", "swingTF", "swingP1", "swingP2", "swingPF", "stabO1", "stabO2", "stabOF", "stabT1", "stabT2", "stabTF", "shoot1", "shoot2", "shootF", "proneStab", "prone", "heal", "fly", "jump", "sit", "ladder", "rope", "dead", "ghostwalk", "ghoststand", "ghostjump", "ghostproneStab", "ghostladder", "ghostrope", "ghostfly", "ghostsit"];
+    var nextStanceFrame = -1
+    var stanceCounter = 0;// playerCounter;
+    var keys = [ "walk1", "walk2", "stand1", "stand2", "alert", "swingO1", "swingO2", "swingO3", "swingOF", "swingT1",
+      "swingT2", "swingT3", "swingTF", "swingP1", "swingP2", "swingPF", "stabO1", "stabO2", "stabOF", "stabT1",
+      "stabT2", "stabTF", "shoot1", "shoot2", "shootF", "proneStab", "prone", "heal", "fly", "jump", "sit", "ladder",
+      "rope", "dead", "ghostwalk", "ghoststand", "ghostjump", "ghostproneStab", "ghostladder", "ghostrope", "ghostfly",
+      "ghostsit" ];
     context.frame.registerUpdateCallback(function(timer) {
+      if (!context.currentMap.loaded) {
+        return;
+      }
+      
       cntr++;
-      if ((cntr % 10) == 0) {
-        stanceCounter++;
-        stanceCounter %= keys.length;
-        player.setStance(keys[stanceCounter]);
-        
-        
-        /*
-        
-        if (back && player.stance_frame == 0) {
-          back = false;
-        } else if (!back && player.stance_frame == player.stance_max_frames) {
-          back = true;
-        }
-        player.stance_frame += back ? -1 : 1;
-        */
+      if (nextStanceFrame < timer) {
+        player.stance_frame++;
+        player.stance_frame %= player.stance_max_frames;
 
         player.repositionYourself();
+        nextStanceFrame = timer + player.stance_delay;
       }
+      
+      player.physics.update();
 
-      player.drawGroup.x = player.x;
-      player.drawGroup.y = player.y;
+      player.drawGroup.x = player.physics.x;
+      player.drawGroup.y = player.physics.y;
+      if (player.flip != (player.drawGroup.width < 0)) {
+        player.drawGroup.width *= -1;
+      }
+      
+
+      context.frame.game.camera.focusOnXY(player.physics.x, player.physics.y - 100);
+      
+      if (player.physics.down) {
+        player.setStance("prone");
+      } else if (!player.physics.left && !player.physics.right) {
+        player.setStance("stand");
+      } else {
+        player.setStance("walk");
+      }
+      
     });
+
+    
+    this.physics = new context.Physics();
   };
 
+  Player.prototype = Object.create(Phaser.Group.prototype);
+  Player.prototype.constructor = Player;
+  
   Player.prototype.addWeapon = function(itemid) {
     parseItem(this, itemid);
     if (this.itemset.indexOf(itemid) === -1) {
@@ -87,6 +113,10 @@
   };
 
   Player.prototype.setStance = function(stance) {
+    if (this.stance_name == stance) {
+      return;
+    }
+    
     this.stance_frame = 0;
     this.stance = this.stance_name = stance;
 
@@ -95,6 +125,8 @@
     } else if (stance == 'walk') {
       this.stance = this.stance_name + this.stance_walk_type;
     }
+    
+    this.stance_max_frames = itemdata[this.skin][this.stance]['frames'];
   };
 
   Player.prototype.reassignItems = function() {
@@ -142,27 +174,7 @@
   Player.prototype.loadData = function() {
     var player = this;
 
-    this.data_buffer.body_map = {};
-    this.data_buffer.body_map.navel = [];
     this.data_buffer.hasHidingCap = false;
-
-    context.getItemDataNode(this.skin, this.stance, function(navelobj) {
-      if (navelobj === null) {
-        throw new 'Navel not found xd?';
-      }
-
-      for (var i = 0;; i++) {
-        if (!navelobj[i])
-          break;
-        player.stance_max_frames = i;
-        var bodymap = navelobj[i]['body']['map'];
-
-        player.data_buffer.body_map.navel[i] = {
-          0 : bodymap['navel']['X'],
-          1 : bodymap['navel']['Y']
-        };
-      }
-    }, true);
 
     parseItem(this, this.skin);
     parseItem(this, 10000 + this.skin);
@@ -177,6 +189,7 @@
     var player = this;
 
     this.drawGroup.removeAll();
+    this.data_buffer.body_map = {};
 
     function drawItem(itemid) {
       var frame = itemdata[itemid][player.stance];
@@ -197,12 +210,25 @@
         return;
       }
 
+      if (itemid === player.skin) {
+        player.stance_delay = frame['extra']['delay'] || 200;
+        player.showface = frame['extra']['showface'] === 1;
+      }
+
       for ( var drawableCategory in frame) {
+        if (drawableCategory === 'extra') {
+          continue;
+        }
+
         var drawable = frame[drawableCategory];
 
-        var bodyObject = player.drawGroup.create(drawable.x - drawable.image.originX, drawable.y
-            - drawable.image.originY, drawable.image.cacheKey);
-        bodyObject.z = drawable.z
+        var mapping = drawable['info']['map'];
+        var xy = calculateXYFromMapping(player, mapping, player.stance, player.stance_frame);
+
+        var bodyObject = player.drawGroup.create(xy[0] - drawable.image.originX, xy[1] - drawable.image.originY,
+            drawable.image.cacheKey);
+
+        bodyObject.z = drawable.z;
       }
     }
 
@@ -226,6 +252,9 @@
       }
 
       for ( var drawableCategory in frame) {
+        if (drawableCategory === 'extra') {
+          continue;
+        }
         var drawable = frame[drawableCategory];
 
         var mapping = drawable['info']['map'];
@@ -233,7 +262,7 @@
 
         var bodyObject = player.drawGroup.create(xy[0] - drawable.image.originX, xy[1] - drawable.image.originY,
             drawable.image.cacheKey);
-        bodyObject.z = drawable.z
+        bodyObject.z = drawable.z;
       }
     }
 
@@ -244,14 +273,15 @@
     for (var i = 0; i < this.itemset.length; i++)
       drawItem(this.itemset[i]);
 
-    drawFace(20000 + this.face);
+    if (this.showface) {
+      drawFace(20000 + this.face);
+    }
     this.drawGroup.sort();
   };
 
   function parseItem(player, itemid) {
 
     if (itemdata[itemid]) {
-      console.warn('Already loaded ' + itemid);
       return;
     }
 
@@ -280,13 +310,9 @@
     console.log(itemid + ' is faic ' + o.isface)
 
     o.iteminfo.forEach(function(stanceNode, stanceName) {
-      if (typeof stanceNode !== 'object') {
+      if (typeof stanceNode !== 'object' || stanceName == 'info') {
         return;
       }
-
-      /*if (stanceName != (o.isface ? player.emotion : player.stance)) {
-        return;
-      }*/
 
       if (typeof stanceNode === 'undefined') {
         console.warn('No info found for key ' + stanceName);
@@ -294,7 +320,7 @@
       }
 
       if (stanceNode instanceof context.UOL) {
-        console.warn('Probably UOL: ' + stanceNode.getPath());
+        // console.warn('Probably UOL: ' + stanceNode.getPath());
         stanceNode = context.resolveUOL(stanceNode);
       }
 
@@ -306,12 +332,13 @@
       stanceNode['frames'] = {};
       if (stanceNode['0']) {
         stanceNode.forEach(function(frame, frameName) {
-          if (!(frame instanceof context.Node)) {
+          if (!(frame instanceof context.Node) || frame['action']) {
             return;
           }
 
           stanceNode['frames'][frameName] = {};
           frame.forEach(function(categoryNode, categoryName) {
+            
             var obj = parseItemFrame(itemid, player, o, categoryNode, categoryName, stanceNode, stanceName, frameName);
             if (obj) {
               stanceNode['frames'][frameName][categoryName] = obj.image;
@@ -341,9 +368,20 @@
     }
 
     if (categoryNode instanceof context.UOL) {
-      console.warn('Probably UOL: ' + categoryNode.getPath());
+      // console.warn('Probably UOL: ' + categoryNode.getPath());
       categoryNode = context.resolveUOL(categoryNode);
       prevNode[categoryName] = categoryNode;
+    }
+    
+    if (categoryName == 'hairShade') {
+      // Its a skin we need for this stuffs
+      categoryNode = categoryNode[player.skin % 1000];
+
+      if (categoryNode instanceof context.UOL) {
+        // fml
+        categoryNode = context.resolveUOL(categoryNode);
+        prevNode[categoryName] = categoryNode;
+      }
     }
 
     if (!categoryNode['map']) {
@@ -352,19 +390,17 @@
       return;
     }
 
-    if (o.itemtype == 2 && stanceName != player.emotion && player.stance != 'rope') {
-      return;
-    }
-    if (o.itemtype == 1 && categoryName == 'ear' && !player.elven_ears) {
-      return;
-    }
-
-    if (o.itemtype == 121 && categoryName != 'weapon') {
-      return;
-    }
+    /*
+     * if (o.itemtype == 2 && stanceName != player.emotion && player.stance !=
+     * 'rope') { return; } if (o.itemtype == 1 && categoryName == 'ear' &&
+     * !player.elven_ears) { return; }
+     * 
+     * if (o.itemtype == 121 && categoryName != 'weapon') { return; }
+     */
     if (o.itemtype == 190) {
       return;
     }
+
     var zval = 0;
     if (!categoryNode['z'] || !context.zmap[categoryNode['z']]) {
       if (o.item_raw_type == 21) {
@@ -403,25 +439,34 @@
       'islot' : !!o.iteminfo['info']['islot'] ? o.iteminfo['info']['islot'] : 'characterStart'
     };
 
-    if (objectdata.islot.indexOf('Cp') !== -1 && objectdata.vslot.indexOf('H1') !== -1) {
-      player.data_buffer.hasHidingCap = true;
-    }
-
-    var mapping = categoryNode['map'];
-
-    var xy = calculateXYFromMapping(player, mapping, stanceName, frameName);
-
-    objectdata['x'] = xy[0];
-    objectdata['y'] = xy[1];
     objectdata['z'] = zval;
 
     objectdata['image'] = context.getOrCreateSprite(categoryNode);
 
     if (!itemdata[itemid][stanceName]) {
-      itemdata[itemid][stanceName] = {};
+      itemdata[itemid][stanceName] = { frames : 0 };
     }
     if (!itemdata[itemid][stanceName][frameName]) {
-      itemdata[itemid][stanceName][frameName] = {};
+      var frameId = parseInt(frameName, 10) + 1;
+      if (itemdata[itemid][stanceName]['frames'] < frameId) {
+        itemdata[itemid][stanceName]['frames'] = frameId;
+      }
+      
+      
+      var obj = itemdata[itemid][stanceName][frameName] = {};
+      obj['extra'] = {};
+
+      var parentNode = categoryNode['..'];
+      // check if special values are there
+      if (parentNode['face']) {
+        obj['extra']['showface'] = parentNode['face'];
+      }
+      if (parentNode['delay']) {
+        obj['extra']['delay'] = parentNode['delay'];
+      }
+      if (parentNode['action']) {
+        obj['extra']['action'] = parentNode['action'];
+      }
     }
     if (!itemdata[itemid][stanceName][frameName][categoryName]) {
       itemdata[itemid][stanceName][frameName][categoryName] = objectdata;
@@ -447,8 +492,13 @@
           positions = bodymap[mapname][frameName] = [];
         }
 
-        positions.push(x + map['X']);
-        positions.push(y + map['Y']);
+        if (mapname == 'body') {
+          positions.push(player.x);
+          positions.push(player.y);
+        } else {
+          positions.push(x + map['X']);
+          positions.push(y + map['Y']);
+        }
       } else {
         x = bodymap[mapname][frameName][0] - map['X'];
         y = bodymap[mapname][frameName][1] - map['Y'];

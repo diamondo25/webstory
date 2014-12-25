@@ -8,8 +8,8 @@ module.exports = function(grunt) {
         banner : '/*! <%= pkg.name %> <%= grunt.template.today("yyyy-mm-dd") %> */\n'
       },
       build : {
-        src : 'src/<%= pkg.name %>.js',
-        dest : 'build/<%= pkg.name %>.min.js'
+        src : 'public/js/*.js',
+        dest : 'public/js/dist/all.min.js'
       }
     },
     concat : {
@@ -18,7 +18,7 @@ module.exports = function(grunt) {
         dest : 'public/js/webstory.js'
       },
       phaser : {
-        src : 'node_modules/phaser/dist/phaser.min.js',
+        src : 'node_modules/phaser/dist/phaser.js',
         dest : 'public/js/phaser.js'
       },
       phasermap : {
@@ -29,7 +29,7 @@ module.exports = function(grunt) {
     watch : {
       scripts : {
         files : [ 'scripts/**/*.js' ],
-        tasks : [ 'concat' ],
+        tasks : [ 'run' ],
         options : {
           spawn : false,
         },
@@ -43,6 +43,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-watch');
 
   // Default task(s).
-  grunt.registerTask('default', [ 'concat', 'watch' ]);
+  grunt.registerTask('run', [ 'concat', 'uglify' ]);
+  grunt.registerTask('default', [ 'run', 'watch' ]);
 
 };

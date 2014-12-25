@@ -1,9 +1,12 @@
 var http = require('http'), fs = require('fs'), path = require('path');
 
+var xmlparser = require('./etc/xmlparser');
+
 var document = 'F:/HaRepacker/sauce/Decrypt/bin/x86/Debug/XML_Dumps/Dump_220812_11-12-2014';
 
 var server = http.createServer(function(req, res) {
-  console.log('Got HTTP req');
+  var url = require('url').parse(req.url, true);
+  console.log('Got HTTP req for: ' + url.pathname);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Request-Method', '*');
@@ -14,8 +17,6 @@ var server = http.createServer(function(req, res) {
     res.end();
     return;
   }
-
-  var url = require('url').parse(req.url, true);
 
   if (url.pathname.indexOf('../') !== -1) {
     res.writeHead(400);
@@ -47,15 +48,31 @@ var server = http.createServer(function(req, res) {
     res.end("Not a file");
   } else {
     res.writeHead(200, {
-      'Content-Type' : 'application/xml',
-      'Content-Length' : stat.size
+      'Content-Type' : 'application/json'
     });
+    try {
+      if (fs.statSync(filePath + '.json').isFile() && false) {
+        console.log('Responding with JSON');
+        fs.readFile(filePath + '.json', function(err, data) {
+          res.end(data);
+        });
+        return;
+      }
+    } catch (ex) {
+    }
 
-    var readStream = fs.createReadStream(filePath);
-    readStream.pipe(res);
+    xmlparser.getJson(filePath, function(data) {
+      console.log('Got contents for ' + filePath)
+      res.end(data);
+    }, true);
+    /*
+     * var readStream = fs.createReadStream(filePath); readStream.pipe(res);
+     */
   }
 });
 
 server.listen(8081, function() {
-  console.log('Listening...');
+  console.log('Webserver is listening for requests');
 });
+
+xmlparser.getJson(path.join(document, '/Base.wz/zmap.img.xml'));
