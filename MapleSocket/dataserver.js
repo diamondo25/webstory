@@ -2,7 +2,7 @@ var http = require('http'), fs = require('fs'), path = require('path');
 
 var xmlparser = require('./etc/xmlparser');
 
-var document = 'F:/HaRepacker/sauce/Decrypt/bin/x86/Debug/XML_Dumps/Dump_220812_11-12-2014';
+var document = 'datafiles/';
 
 var server = http.createServer(function(req, res) {
   var url = require('url').parse(req.url, true);
